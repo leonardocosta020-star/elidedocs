@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>DocFlow — Gestão de Documentos Empresariais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
+<style>
+:root{
+  --ink:#101826; --navy:#1B2A4A; --navy-2:#233559; --slate:#5B6A85; --slate-light:#8893A8;
+  --paper:#F4F5F8; --surface:#FFFFFF; --line:#E2E5EC; --line-strong:#CBD1DE;
+  --teal:#1F8A70; --teal-dark:#166F5B; --teal-tint:#E4F3EE;
+  --amber:#D98E2B; --amber-tint:#FBF0DE;
+  --red:#C2483A; --red-tint:#FBE9E7;
+  --radius:10px; --radius-lg:16px;
+  --shadow-sm:0 1px 2px rgba(16,24,38,.06), 0 1px 1px rgba(16,24,38,.04);
+  --shadow-md:0 8px 24px rgba(16,24,38,.10);
+  --shadow-lg:0 20px 48px rgba(16,24,38,.22);
+  --font-display:'Space Grotesk',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;font-family:var(--font-body);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+a{color:inherit;}
+::selection{background:var(--teal-tint);}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+.screen{min-height:100vh;}
+.hidden{display:none !important;}
+
+/* ---------- Brand mark: corner-bracket "scan" motif ---------- */
+.brandmark{width:30px;height:30px;position:relative;flex:none;}
+.brandmark span{position:absolute;width:10px;height:10px;border:2.5px solid var(--teal);}
+.brandmark span:nth-child(1){top:0;left:0;border-right:none;border-bottom:none;border-radius:3px 0 0 0;}
+.brandmark span:nth-child(2){top:0;right:0;border-left:none;border-bottom:none;border-radius:0 3px 0 0;}
+.brandmark span:nth-child(3){bottom:0;left:0;border-right:none;border-top:none;border-radius:0 0 0 3px;}
+.brandmark span:nth-child(4){bottom:0;right:0;border-left:none;border-top:none;border-radius:0 0 3px 0;}
+.brand-row{display:flex;align-items:center;gap:10px;}
+.brand-word{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:-.02em;color:var(--navy);}
+.brand-word b{color:var(--teal);}
+
+/* ---------- Login ---------- */
+#view-login{display:flex;align-items:center;justify-content:center;background:
+  radial-gradient(1100px 500px at 15% -10%, #1B2A4A 0%, #101826 55%, #0B111C 100%);
+  padding:24px;}
+.login-card{width:100%;max-width:400px;background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:32px 28px 26px;}
+.login-tabs{display:flex;background:var(--paper);border-radius:999px;padding:3px;margin:20px 0 18px;}
+.login-tab{flex:1;text-align:center;padding:8px 0;border:none;background:transparent;border-radius:999px;font-weight:600;font-size:13px;color:var(--slate);}
+.login-tab.active{background:var(--navy);color:#fff;}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--slate);margin-bottom:5px;}
+.field input,.field select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--radius);font-size:14.5px;background:#fff;}
+.field input:focus,.field select:focus{border-color:var(--teal);}
+.btn{border:none;border-radius:var(--radius);padding:11px 18px;font-weight:600;font-size:14.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s ease, background .15s ease;}
+.btn:active{transform:scale(.98);}
+.btn-primary{background:var(--teal);color:#fff;width:100%;}
+.btn-primary:hover{background:var(--teal-dark);}
+.btn-ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line-strong);}
+.btn-ghost:hover{background:var(--paper);}
+.btn-danger{background:var(--red-tint);color:var(--red);}
+.btn-danger:hover{background:#f6d9d5;}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px;}
+.hint-box{margin-top:16px;background:var(--paper);border-radius:var(--radius);padding:11px 13px;font-size:12px;color:var(--slate);line-height:1.6;font-family:var(--font-mono);}
+.login-error{background:var(--red-tint);color:var(--red);font-size:13px;padding:9px 11px;border-radius:8px;margin-bottom:12px;display:none;}
+
+/* ---------- App shell ---------- */
+#view-shell{display:flex;flex-direction:column;height:100vh;}
+.topbar{height:60px;flex:none;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 18px;}
+.topbar .company-chip{font-family:var(--font-mono);font-size:12px;background:var(--teal-tint);color:var(--teal-dark);padding:5px 10px;border-radius:7px;font-weight:500;}
+.search-wrap{flex:1;max-width:460px;position:relative;}
+.search-wrap input{width:100%;padding:9px 14px 9px 34px;border:1.5px solid var(--line);border-radius:999px;background:var(--paper);font-size:14px;}
+.search-wrap input:focus{background:#fff;border-color:var(--teal);}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.5;font-size:14px;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.user-pill{display:flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;border-radius:999px;background:var(--paper);cursor:pointer;border:none;}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);}
+.layout{flex:1;display:flex;min-height:0;}
+.sidebar{width:240px;flex:none;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px;overflow-y:auto;}
+.sidebar h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate-light);margin:16px 8px 6px;font-weight:700;}
+.sidebar h4:first-child{margin-top:0;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer;border:none;background:transparent;width:100%;text-align:left;}
+.nav-item:hover{background:var(--paper);}
+.nav-item.active{background:var(--teal-tint);color:var(--teal-dark);font-weight:600;}
+.nav-item .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+.nav-item .count{margin-left:auto;font-size:11.5px;color:var(--slate-light);font-family:var(--font-mono);}
+.add-link{font-size:12.5px;color:var(--teal-dark);font-weight:600;padding:6px 9px;background:none;border:none;display:flex;align-items:center;gap:5px;}
+.content{flex:1;min-width:0;overflow-y:auto;padding:22px 26px 90px;}
+.content-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.content-toolbar h2{font-family:var(--font-display);font-size:21px;margin:0;font-weight:700;}
+.content-toolbar .sub{font-size:12.5px;color:var(--slate);font-family:var(--font-mono);}
+.toolbar-actions{margin-left:auto;display:flex;gap:10px;}
+
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;}
+.doc-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
+.doc-card:hover{box-shadow:var(--shadow-md);border-color:var(--line-strong);}
+.doc-thumb{height:96px;border-radius:8px;background:var(--paper);display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:26px;overflow:hidden;}
+.doc-thumb img{width:100%;height:100%;object-fit:cover;}
+.doc-name{font-weight:600;font-size:13.5px;line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.doc-meta{font-size:11.5px;color:var(--slate);font-family:var(--font-mono);}
+.doc-tag{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:6px;}
+.empty-state{text-align:center;padding:70px 20px;color:var(--slate);}
+.empty-state .brandmark{margin:0 auto 16px;transform:scale(1.6);opacity:.35;}
+.empty-state h3{font-family:var(--font-display);color:var(--ink);margin:0 0 6px;}
+
+/* ---------- Modals ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(16,24,38,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px;}
+.modal-box{background:#fff;border-radius:var(--radius-lg);max-width:480px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-head{display:flex;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line);}
+.modal-head h3{font-family:var(--font-display);font-size:17px;margin:0;}
+.modal-close{margin-left:auto;background:none;border:none;font-size:20px;color:var(--slate);width:30px;height:30px;border-radius:8px;}
+.modal-close:hover{background:var(--paper);}
+.modal-body{padding:18px 20px;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;}
+.dropzone{border:2px dashed var(--line-strong);border-radius:var(--radius);padding:26px 14px;text-align:center;color:var(--slate);font-size:13.5px;cursor:pointer;}
+.dropzone.drag{border-color:var(--teal);background:var(--teal-tint);}
+.filelist{margin-top:10px;font-size:13px;}
+.filelist div{padding:6px 0;border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:12px;}
+
+/* ---------- Viewer ---------- */
+.viewer-body{display:flex;flex-direction:column;gap:14px;}
+.viewer-preview{background:var(--paper);border-radius:var(--radius);min-height:220px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.viewer-preview img{max-width:100%;max-height:420px;object-fit:contain;}
+.kv{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line);}
+.kv span:first-child{color:var(--slate);}
+.ocr-box{background:var(--paper);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--slate);max-height:120px;overflow-y:auto;font-family:var(--font-mono);white-space:pre-wrap;}
+
+/* ---------- Toasts ---------- */
+#toast-container{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:13.5px;box-shadow:var(--shadow-md);animation:toastIn .2s ease;}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- Mobile bottom nav ---------- */
+.mobile-tabbar{display:none;}
+.fab-scan{position:fixed;right:22px;bottom:84px;width:58px;height:58px;border-radius:50%;background:var(--teal);color:#fff;border:none;font-size:24px;box-shadow:0 10px 24px rgba(31,138,112,.45);z-index:40;display:none;align-items:center;justify-content:center;}
+.desktop-scan-btn{background:var(--navy);color:#fff;}
+.desktop-scan-btn:hover{background:var(--navy-2);}
+
+/* ---------- Scanner overlay ---------- */
+.scanner-overlay{position:fixed;inset:0;background:#0B111C;z-index:100;display:flex;flex-direction:column;color:#fff;}
+.scan-header{display:flex;align-items:center;padding:14px 16px;gap:12px;border-bottom:1px solid rgba(255,255,255,.1);}
+.scan-header h3{font-family:var(--font-display);font-size:15px;margin:0;font-weight:600;}
+.scan-close{margin-left:auto;background:rgba(255,255,255,.08);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:16px;}
+.scan-progress{display:flex;gap:5px;padding:0 16px 12px;}
+.scan-progress i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.15);}
+.scan-progress i.done{background:var(--teal);}
+.scan-body{flex:1;overflow-y:auto;padding:18px 16px 100px;display:flex;flex-direction:column;align-items:center;}
+.scan-foot{position:fixed;left:0;right:0;bottom:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(0deg,#0B111C 60%,transparent);display:flex;gap:10px;justify-content:center;z-index:5;}
+.scan-foot .btn{flex:1;max-width:220px;}
+.capture-drop{width:100%;max-width:360px;aspect-ratio:3/4;border:2px dashed rgba(255,255,255,.28);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:rgba(255,255,255,.7);text-align:center;padding:20px;position:relative;}
+.capture-drop .bmark span{border-color:var(--teal);}
+.scan-tip{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:14px;text-align:center;max-width:320px;line-height:1.6;}
+#crop-canvas-wrap{position:relative;max-width:100%;touch-action:none;}
+#crop-canvas{max-width:100%;border-radius:10px;display:block;}
+.crop-handle{position:absolute;width:26px;height:26px;margin:-13px;border-radius:50%;background:var(--teal);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);touch-action:none;cursor:grab;}
+#enhance-canvas-wrap{max-width:100%;}
+#enhance-canvas{max-width:100%;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);}
+.enhance-controls{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;justify-content:center;}
+.chip-toggle{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);color:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:500;}
+.chip-toggle.active{background:var(--teal);border-color:var(--teal);}
+.pages-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;width:100%;max-width:520px;}
+.page-thumb{background:#151E30;border-radius:10px;overflow:hidden;border:1.5px solid rgba(255,255,255,.1);position:relative;}
+.page-thumb img{width:100%;height:130px;object-fit:cover;display:block;}
+.page-thumb .pnum{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.6);font-size:11px;padding:2px 7px;border-radius:6px;font-family:var(--font-mono);}
+.page-actions{display:flex;gap:4px;padding:6px;background:#151E30;}
+.page-actions button{flex:1;background:rgba(255,255,255,.08);border:none;color:#fff;font-size:11px;padding:5px 0;border-radius:6px;}
+.add-page-tile{border:2px dashed rgba(255,255,255,.25);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:rgba(255,255,255,.6);font-size:12px;gap:6px;min-height:150px;}
+.scan-status{font-size:13px;color:rgba(255,255,255,.7);text-align:center;margin-top:14px;}
+.spinner{width:26px;height:26px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--teal);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.save-form{width:100%;max-width:380px;color:var(--ink);background:#fff;border-radius:14px;padding:18px;}
+.save-form .field label{color:var(--slate);}
+
+/* ---------- Admin panel ---------- */
+#view-admin{background:var(--paper);}
+.admin-header{background:var(--navy);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:14px;}
+.admin-header .brand-word{color:#fff;}
+.admin-header .brand-word b{color:#7FD9C4;}
+.admin-badge{font-family:var(--font-mono);font-size:11px;background:rgba(255,255,255,.12);padding:4px 9px;border-radius:6px;}
+.admin-body{padding:24px;max-width:1100px;margin:0 auto;}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px;}
+.stat-card{background:#fff;border-radius:var(--radius-lg);padding:16px 18px;border:1px solid var(--line);}
+.stat-card .num{font-family:var(--font-display);font-size:26px;font-weight:700;color:var(--navy);}
+.stat-card .lbl{font-size:12px;color:var(--slate);margin-top:2px;}
+.admin-table{width:100%;border-collapse:collapse;background:#fff;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--line);}
+.admin-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate-light);padding:11px 14px;border-bottom:1px solid var(--line);background:var(--paper);}
+.admin-table td{padding:12px 14px;font-size:13.5px;border-bottom:1px solid var(--line);}
+.admin-table tr:last-child td{border-bottom:none;}
+.status-pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;}
+.status-active{background:var(--teal-tint);color:var(--teal-dark);}
+.status-suspended{background:var(--red-tint);color:var(--red);}
+.bar-track{background:var(--line);height:6px;border-radius:3px;width:120px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--teal);}
+.section-title{font-family:var(--font-display);font-size:15px;margin:26px 0 10px;font-weight:700;}
+.roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+.roadmap-card{background:#fff;border:1px dashed var(--line-strong);border-radius:var(--radius);padding:13px 14px;font-size:12.5px;color:var(--slate);}
+.roadmap-card b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:3px;font-family:var(--font-display);}
+
+@media (max-width:860px){
+  .sidebar{display:none;}
+  .topbar{padding:0 12px;gap:10px;}
+  .search-wrap{max-width:none;}
+  .content{padding:16px 14px 100px;}
+  .toolbar-actions .desktop-scan-btn{display:none;}
+  .mobile-tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid var(--line);z-index:30;padding-bottom:env(safe-area-inset-bottom);}
+  .mobile-tabbar button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;color:var(--slate);font-weight:600;}
+  .mobile-tabbar button.active{color:var(--teal-dark);}
+  .fab-scan{display:flex;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="view-login" class="screen">
+  <div class="login-card">
+    <div class="brand-row"><div class="brandmark"><span></span><span></span><span></span><span></span></div><span class="brand-word">Doc<b>Flow</b></span></div>
+    <div class="login-tabs">
+      <button class="login-tab active" id="tab-company" onclick="setLoginTab('company')">Minha empresa</button>
+      <button class="login-tab" id="tab-admin" onclick="setLoginTab('admin')">Painel DocFlow</button>
+    </div>
+    <div id="login-error" class="login-error"></div>
+    <div class="field"><label>E-mail</label><input id="login-email" type="email" placeholder="voce@empresa.com"></div>
+    <div class="field"><label>Senha</label><input id="login-pass" type="password" placeholder="••••••••"></div>
+    <button class="btn btn-primary" onclick="doLogin()">Entrar</button>
+    <div class="hint-box" id="login-hint"></div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="view-shell" class="screen hidden">
+  <header class="topbar">
+    <div class="brand-row"><div class="brandmark"><span></span><span></span><span></span><span></span></div><span class="brand-word" style="font-size:16px">Doc<b>Flow</b></span></div>
+    <span class="company-chip" id="topbar-company"></span>
+    <div class="search-wrap"><span class="search-icon">⌕</span><input id="search-input" placeholder="Pesquisar por nome ou conteúdo do documento..." oninput="onSearch(this.value)"></div>
+    <div class="topbar-right">
+      <button class="user-pill" onclick="logout()" title="Sair">
+        <span class="avatar" id="user-avatar">?</span>
+        <span id="user-name" style="font-size:13px;font-weight:600;"></span>
+      </button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar">
+      <h4>Visão geral</h4>
+      <button class="nav-item active" id="nav-all" onclick="selectFilter({})"><span>🗂</span>Todos os documentos<span class="count" id="count-all"></span></button>
+      <h4>Categorias</h4>
+      <div id="category-list"></div>
+      <button class="add-link" onclick="openNewCategory()" id="btn-new-category">＋ Nova categoria</button>
+      <h4>Pastas</h4>
+      <div id="folder-list"></div>
+      <button class="add-link" onclick="openNewFolder()">＋ Nova pasta</button>
+    </aside>
+    <main class="content">
+      <div class="content-toolbar">
+        <div>
+          <h2 id="content-title">Todos os documentos</h2>
+          <div class="sub" id="content-sub"></div>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn btn-ghost" onclick="openUpload()">⬆ Enviar arquivo</button>
+          <button class="btn desktop-scan-btn" onclick="openScanner()">▣ Escanear documento</button>
+        </div>
+      </div>
+      <div id="doc-grid" class="doc-grid"></div>
+      <div id="empty-state" class="empty-state hidden">
+        <div class="brandmark"><span></span><span></span><span></span><span></span></div>
+        <h3>Nenhum documento aqui ainda</h3>
+        <p>Envie um arquivo ou escaneie um documento pelo celular para começar.</p>
+      </div>
+    </main>
+  </div>
+  <nav class="mobile-tabbar">
+    <button class="active" onclick="selectFilter({})">🗂<span>Início</span></button>
+    <button onclick="document.querySelector('.sidebar')?.scrollIntoView()">📁<span>Pastas</span></button>
+    <button onclick="openScanner()" style="visibility:hidden">▣<span>Scan</span></button>
+    <button onclick="focusSearch()">⌕<span>Buscar</span></button>
+    <button onclick="logout()">👤<span>Perfil</span></button>
+  </nav>
+  <button class="fab-scan" onclick="openScanner()">▣</button>
+</div>
+
+<!-- ============ ADMIN PANEL ============ -->
+<div id="view-admin" class="screen hidden">
+  <div class="admin-header">
+    <div class="brand-row"><div class="brandmark"><span></span><span></span><span></span><span></span></div><span class="brand-word">Doc<b>Flow</b></span></div>
+    <span class="admin-badge">painel administrativo</span>
+    <button class="btn btn-sm btn-ghost" style="margin-left:auto;color:#fff;border-color:rgba(255,255,255,.3)" onclick="logout()">Sair</button>
+  </div>
+  <div class="admin-body">
+    <div class="stat-row" id="admin-stats"></div>
+    <div class="section-title">Empresas cadastradas</div>
+    <table class="admin-table">
+      <thead><tr><th>Empresa</th><th>Plano</th><th>Usuários</th><th>Documentos</th><th>Armazenamento</th><th>Status</th><th></th></tr></thead>
+      <tbody id="admin-companies"></tbody>
+    </table>
+    <div class="section-title">Preparado para o futuro</div>
+    <div class="roadmap-grid">
+      <div class="roadmap-card"><b>OCR avançado</b>Leitura automática de campos (CPF, datas, valores) além do texto pesquisável já ativo.</div>
+      <div class="roadmap-card"><b>Assinatura digital</b>Fluxo de assinatura eletrônica integrada por documento e signatário.</div>
+      <div class="roadmap-card"><b>Alertas de vencimento</b>Notificações automáticas para documentos com data de validade próxima.</div>
+      <div class="roadmap-card"><b>Cobrança por assinatura</b>Planos mensais por empresa com limite de armazenamento e usuários.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: upload ============ -->
+<div id="modal-upload" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-head"><h3>Enviar arquivo</h3><button class="modal-close" onclick="closeModal('modal-upload')">✕</button></div>
+    <div class="modal-body">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        📄 Arraste um PDF ou imagem aqui, ou clique para escolher<br>
+        <input type="file" id="file-input" accept=".pdf,image/*" multiple style="display:none" onchange="handleFilePick(this.files)">
+      </div>
+      <div class="filelist" id="upload-filelist"></div>
+      <div class="field" style="margin-top:14px"><label>Categoria</label><select id="upload-category"></select></div>
+      <div class="field"><label>Pasta (opcional)</label><select id="upload-folder"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-upload')">Cancelar</button>
+      <button class="btn btn-primary" style="width:auto" onclick="confirmUpload()">Salvar documento(s)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: category ============ -->
+<div id="modal-newcat" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-head"><h3>Nova categoria</h3><button class="modal-close" onclick="closeModal('modal-newcat')">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Nome da categoria</label><input id="newcat-name" placeholder="Ex: Procurações"></div>
+      <div class="field"><label>Cor</label>
+        <div id="color-picks" style="display:flex;gap:8px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('modal-newcat')">Cancelar</button><button class="btn btn-primary" style="width:auto" onclick="confirmNewCategory()">Criar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: folder ============ -->
+<div id="modal-newfolder" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-head"><h3>Nova pasta</h3><button class="modal-close" onclick="closeModal('modal-newfolder')">✕</button></div>
+    <div class="modal-body"><div class="field"><label>Nome da pasta</label><input id="newfolder-name" placeholder="Ex: Contratos 2026"></div></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('modal-newfolder')">Cancelar</button><button class="btn btn-primary" style="width:auto" onclick="confirmNewFolder()">Criar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: viewer ============ -->
+<div id="modal-viewer" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px">
+    <div class="modal-head"><h3 id="viewer-title">Documento</h3><button class="modal-close" onclick="closeModal('modal-viewer')">✕</button></div>
+    <div class="modal-body viewer-body">
+      <div class="viewer-preview" id="viewer-preview"></div>
+      <div>
+        <div class="kv"><span>Categoria</span><span id="viewer-cat"></span></div>
+        <div class="kv"><span>Pasta</span><span id="viewer-folder"></span></div>
+        <div class="kv"><span>Data</span><span id="viewer-date"></span></div>
+        <div class="kv"><span>Tamanho</span><span id="viewer-size"></span></div>
+        <div class="kv"><span>Páginas</span><span id="viewer-pages"></span></div>
+      </div>
+      <div id="viewer-ocr-wrap" class="hidden">
+        <div style="font-size:12px;color:var(--slate);font-weight:600;margin-bottom:6px;">TEXTO RECONHECIDO (OCR) — usado na pesquisa</div>
+        <div class="ocr-box" id="viewer-ocr"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" onclick="deleteCurrentDoc()">Excluir</button>
+      <button class="btn btn-ghost" onclick="downloadCurrentDoc()">Baixar</button>
+      <button class="btn btn-primary" style="width:auto" onclick="closeModal('modal-viewer')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCANNER ============ -->
+<div id="scanner" class="scanner-overlay hidden">
+  <div class="scan-header">
+    <div class="brand-row"><div class="brandmark"><span></span><span></span><span></span><span></span></div><h3>Escanear documento</h3></div>
+    <button class="scan-close" onclick="closeScanner()">✕</button>
+  </div>
+  <div class="scan-progress"><i id="sp-1"></i><i id="sp-2"></i><i id="sp-3"></i><i id="sp-4"></i></div>
+  <div class="scan-body" id="scan-body"><!-- steps injected by JS --></div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/* ======================================================================
+   DocFlow — protótipo funcional (front-end)
+   Simulação de multi-tenant: todo dado é gravado com prefixo {companyId}
+   usando window.storage, reproduzindo o particionamento por empresa que
+   o backend real deve aplicar (ver arquitetura-tecnica-docflow.md).
+   ====================================================================== */
+
+const DEFAULT_CATEGORIES = [
+  {name:'Contratos', color:'#1F8A70'},
+  {name:'Documentos Pessoais', color:'#3D6BD9'},
+  {name:'Documentos Fiscais', color:'#D98E2B'},
+  {name:'Documentos Trabalhistas', color:'#8850C7'},
+  {name:'Fichas', color:'#C2483A'},
+  {name:'Comprovantes', color:'#0E9AA7'},
+  {name:'Outros', color:'#5B6A85'},
+];
+const CATEGORY_COLORS = ['#1F8A70','#3D6BD9','#D98E2B','#8850C7','#C2483A','#0E9AA7','#5B6A85','#B5457A'];
+
+let session = null; // {companyId, userId, userName, isPlatformAdmin}
+let CACHE = {companies:null, users:null, cats:{}, folders:{}, docs:{}};
+let filter = {categoryId:null, folderId:null, query:''};
+let currentDocId = null;
+
+/* ---------------- storage helpers ---------------- */
+async function stGet(key){
+  try{ const r = await window.storage.get(key,false); return r ? JSON.parse(r.value) : null; }catch(e){ return null; }
+}
+async function stSet(key,val){
+  try{ await window.storage.set(key, JSON.stringify(val), false); return true; }catch(e){ console.error('storage set failed',e); return false; }
+}
+
+function uid(prefix){ return prefix+'_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+
+/* ---------------- seed demo data ---------------- */
+async function ensureSeed(){
+  let companies = await stGet('docflow:companies');
+  if(!companies){
+    companies = {
+      alfa:{id:'alfa', name:'Empresa Alfa Ltda', cnpj:'12.345.678/0001-90', plan:'Profissional', storageLimitMB:500, status:'active', createdAt:'2026-02-10'},
+      beta:{id:'beta', name:'Beta Comércio ME', cnpj:'98.765.432/0001-11', plan:'Essencial', storageLimitMB:200, status:'active', createdAt:'2026-05-22'},
+    };
+    await stSet('docflow:companies', companies);
+  }
+  let users = await stGet('docflow:users');
+  if(!users){
+    users = [
+      {id:'u_alfa_admin', companyId:'alfa', name:'Marina Souza', email:'admin@alfa.com', password:'123456', role:'company_admin'},
+      {id:'u_beta_admin', companyId:'beta', name:'Rafael Lima', email:'admin@beta.com', password:'123456', role:'company_admin'},
+    ];
+    await stSet('docflow:users', users);
+  }
+  for(const cid of ['alfa','beta']){
+    let cats = await stGet('docflow:categories:'+cid);
+    if(!cats){
+      cats = DEFAULT_CATEGORIES.map(c=>({id:uid('cat'), name:c.name, color:c.color, isDefault:true}));
+      await stSet('docflow:categories:'+cid, cats);
+    }
+    let folders = await stGet('docflow:folders:'+cid);
+    if(!folders){ folders = []; await stSet('docflow:folders:'+cid, folders); }
+    let idx = await stGet('docflow:docindex:'+cid);
+    if(!idx){ await stSet('docflow:docindex:'+cid, []); }
+  }
+}
+
+/* ---------------- auth ---------------- */
+function setLoginTab(tab){
+  document.getElementById('tab-company').classList.toggle('active', tab==='company');
+  document.getElementById('tab-admin').classList.toggle('active', tab==='admin');
+  const hint = document.getElementById('login-hint');
+  if(tab==='company'){
+    hint.innerHTML = 'Ambiente de demonstração — contas de exemplo:<br>admin@alfa.com / 123456 (Empresa Alfa)<br>admin@beta.com / 123456 (Empresa Beta)';
+  }else{
+    hint.innerHTML = 'Ambiente de demonstração — acesso da equipe DocFlow:<br>admin@docflow.com / admin123';
+  }
+  document.getElementById('login-email').dataset.mode = tab;
+}
+setLoginTab('company');
+
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const mode = document.getElementById('login-email').dataset.mode || 'company';
+  const errBox = document.getElementById('login-error');
+  errBox.style.display='none';
+  if(mode==='admin'){
+    if(email==='admin@docflow.com' && pass==='admin123'){
+      session = {isPlatformAdmin:true, userName:'Equipe DocFlow'};
+      showAdmin();
+      return;
+    }
+    errBox.textContent = 'Credenciais inválidas para o painel administrativo.';
+    errBox.style.display='block';
+    return;
+  }
+  const users = await stGet('docflow:users') || [];
+  const u = users.find(x=>x.email.toLowerCase()===email && x.password===pass);
+  if(!u){ errBox.textContent='E-mail ou senha inválidos.'; errBox.style.display='block'; return; }
+  const companies = await stGet('docflow:companies') || {};
+  const comp = companies[u.companyId];
+  if(comp && comp.status==='suspended'){ errBox.textContent='Esta empresa está suspensa. Contate o suporte.'; errBox.style.display='block'; return; }
+  session = {companyId:u.companyId, userId:u.id, userName:u.name, isPlatformAdmin:false};
+  await enterCompany();
+}
+
+function logout(){
+  session=null; filter={categoryId:null,folderId:null,query:''};
+  document.getElementById('view-shell').classList.add('hidden');
+  document.getElementById('view-admin').classList.add('hidden');
+  document.getElementById('view-login').classList.remove('hidden');
+  document.getElementById('login-email').value=''; document.getElementById('login-pass').value='';
+}
+
+/* ---------------- company workspace ---------------- */
+async function enterCompany(){
+  document.getElementById('view-login').classList.add('hidden');
+  document.getElementById('view-admin').classList.add('hidden');
+  document.getElementById('view-shell').classList.remove('hidden');
+  const companies = await stGet('docflow:companies') || {};
+  const comp = companies[session.companyId];
+  document.getElementById('topbar-company').textContent = comp.name;
+  document.getElementById('user-name').textContent = session.userName;
+  document.getElementById('user-avatar').textContent = session.userName.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  await renderSidebar();
+  await renderGrid();
+}
+
+async function renderSidebar(){
+  const cats = await stGet('docflow:categories:'+session.companyId) || [];
+  const folders = await stGet('docflow:folders:'+session.companyId) || [];
+  const idx = await stGet('docflow:docindex:'+session.companyId) || [];
+  document.getElementById('count-all').textContent = idx.length || '';
+  const metas = await loadAllMeta();
+  const catList = document.getElementById('category-list');
+  catList.innerHTML = cats.map(c=>{
+    const n = metas.filter(m=>m.categoryId===c.id).length;
+    return `<button class="nav-item ${filter.categoryId===c.id?'active':''}" onclick='selectFilter({categoryId:"${c.id}"})'>
+      <span class="dot" style="background:${c.color}"></span>${escapeHtml(c.name)}<span class="count">${n||''}</span></button>`;
+  }).join('');
+  const folderList = document.getElementById('folder-list');
+  folderList.innerHTML = folders.length ? folders.map(f=>{
+    const n = metas.filter(m=>m.folderId===f.id).length;
+    return `<button class="nav-item ${filter.folderId===f.id?'active':''}" onclick='selectFilter({folderId:"${f.id}"})'>
+      <span>📁</span>${escapeHtml(f.name)}<span class="count">${n||''}</span></button>`;
+  }).join('') : `<div style="font-size:12.5px;color:var(--slate-light);padding:4px 9px;">Nenhuma pasta ainda</div>`;
+}
+
+function selectFilter(f){
+  filter = {categoryId:f.categoryId||null, folderId:f.folderId||null, query:filter.query};
+  document.querySelectorAll('#nav-all, .nav-item').forEach(el=>el.classList.remove('active'));
+  if(!f.categoryId && !f.folderId) document.getElementById('nav-all').classList.add('active');
+  renderSidebar(); renderGrid();
+}
+function onSearch(v){ filter.query = v.trim().toLowerCase(); renderGrid(); }
+function focusSearch(){ document.getElementById('search-input').focus(); }
+
+async function loadAllMeta(){
+  const idx = await stGet('docflow:docindex:'+session.companyId) || [];
+  const list = [];
+  for(const id of idx){
+    const m = await stGet('docflow:docmeta:'+session.companyId+':'+id);
+    if(m) list.push(m);
+  }
+  return list.sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+}
+
+function normalize(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+async function renderGrid(){
+  const cats = await stGet('docflow:categories:'+session.companyId) || [];
+  const folders = await stGet('docflow:folders:'+session.companyId) || [];
+  let metas = await loadAllMeta();
+  document.getElementById('count-all').textContent = metas.length || '';
+  if(filter.categoryId) metas = metas.filter(m=>m.categoryId===filter.categoryId);
+  if(filter.folderId) metas = metas.filter(m=>m.folderId===filter.folderId);
+  if(filter.query) metas = metas.filter(m=> normalize(m.name).includes(normalize(filter.query)) || normalize(m.ocrText).includes(normalize(filter.query)));
+
+  const title = filter.categoryId ? (cats.find(c=>c.id===filter.categoryId)?.name||'Categoria')
+              : filter.folderId ? (folders.find(f=>f.id===filter.folderId)?.name||'Pasta')
+              : 'Todos os documentos';
+  document.getElementById('content-title').textContent = filter.query ? `Resultados para "${filter.query}"` : title;
+  document.getElementById('content-sub').textContent = `${metas.length} documento${metas.length===1?'':'s'}`;
+
+  const grid = document.getElementById('doc-grid');
+  const empty = document.getElementById('empty-state');
+  if(metas.length===0){ grid.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  grid.innerHTML = metas.map(m=>{
+    const cat = cats.find(c=>c.id===m.categoryId);
+    const icon = m.mimeType==='application/pdf' ? '📕' : '🖼️';
+    const thumb = m.thumb ? `<img src="${m.thumb}">` : icon;
+    return `<div class="doc-card" onclick="openViewer('${m.id}')">
+      <div class="doc-thumb">${thumb}</div>
+      <div class="doc-name">${escapeHtml(m.name)}</div>
+      <div class="doc-meta">${formatDate(m.createdAt)} · ${formatSize(m.sizeBytes)}${m.pageCount>1?` · ${m.pageCount}p`:''}</div>
+      ${cat?`<span class="doc-tag" style="background:${cat.color}22;color:${cat.color}">${escapeHtml(cat.name)}</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function formatDate(iso){ const d=new Date(iso); return d.toLocaleDateString('pt-BR'); }
+function formatSize(b){ if(!b) return '0 KB'; if(b<1024*1024) return (b/1024).toFixed(0)+' KB'; return (b/1024/1024).toFixed(1)+' MB'; }
+
+/* ---------------- categories / folders ---------------- */
+function openNewCategory(){
+  const wrap = document.getElementById('color-picks');
+  wrap.innerHTML = CATEGORY_COLORS.map((c,i)=>`<button onclick="pickColor('${c}',this)" data-color="${c}" style="width:26px;height:26px;border-radius:50%;background:${c};border:2px solid ${i===0?'#101826':'transparent'}"></button>`).join('');
+  wrap.dataset.selected = CATEGORY_COLORS[0];
+  document.getElementById('newcat-name').value='';
+  document.getElementById('modal-newcat').classList.remove('hidden');
+}
+function pickColor(c,btn){
+  document.getElementById('color-picks').dataset.selected = c;
+  [...btn.parentElement.children].forEach(b=>b.style.border='2px solid transparent');
+  btn.style.border='2px solid #101826';
+}
+async function confirmNewCategory(){
+  const name = document.getElementById('newcat-name').value.trim();
+  if(!name){ toast('Digite um nome para a categoria'); return; }
+  const color = document.getElementById('color-picks').dataset.selected;
+  const cats = await stGet('docflow:categories:'+session.companyId) || [];
+  cats.push({id:uid('cat'), name, color, isDefault:false});
+  await stSet('docflow:categories:'+session.companyId, cats);
+  closeModal('modal-newcat'); toast('Categoria criada'); renderSidebar();
+}
+function openNewFolder(){ document.getElementById('newfolder-name').value=''; document.getElementById('modal-newfolder').classList.remove('hidden'); }
+async function confirmNewFolder(){
+  const name = document.getElementById('newfolder-name').value.trim();
+  if(!name){ toast('Digite um nome para a pasta'); return; }
+  const folders = await stGet('docflow:folders:'+session.companyId) || [];
+  folders.push({id:uid('fold'), name});
+  await stSet('docflow:folders:'+session.companyId, folders);
+  closeModal('modal-newfolder'); toast('Pasta criada'); renderSidebar();
+}
+
+function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+
+/* ---------------- upload (non-scan) ---------------- */
+let pendingFiles = [];
+async function openUpload(){
+  pendingFiles = [];
+  document.getElementById('upload-filelist').innerHTML='';
+  const cats = await stGet('docflow:categories:'+session.companyId) || [];
+  const folders = await stGet('docflow:folders:'+session.companyId) || [];
+  document.getElementById('upload-category').innerHTML = cats.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  document.getElementById('upload-folder').innerHTML = `<option value="">Sem pasta</option>` + folders.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('');
+  document.getElementById('modal-upload').classList.remove('hidden');
+}
+function handleFilePick(files){
+  pendingFiles = [...files];
+  document.getElementById('upload-filelist').innerHTML = pendingFiles.map(f=>`<div>${escapeHtml(f.name)} — ${formatSize(f.size)}</div>`).join('');
+}
+const dz = ()=>document.getElementById('dropzone');
+document.addEventListener('DOMContentLoaded', ()=>{
+  const el = dz();
+  el.addEventListener('dragover', e=>{e.preventDefault(); el.classList.add('drag');});
+  el.addEventListener('dragleave', ()=> el.classList.remove('drag'));
+  el.addEventListener('drop', e=>{ e.preventDefault(); el.classList.remove('drag'); handleFilePick(e.dataTransfer.files); });
+});
+async function confirmUpload(){
+  if(pendingFiles.length===0){ toast('Escolha ao menos um arquivo'); return; }
+  const categoryId = document.getElementById('upload-category').value;
+  const folderId = document.getElementById('upload-folder').value || null;
+  for(const f of pendingFiles){
+    const dataUrl = await fileToDataUrl(f);
+    const id = uid('doc');
+    const meta = {id, name:f.name, categoryId, folderId, mimeType:f.type||'application/octet-stream',
+      sizeBytes:f.size, pageCount:1, ocrText:'', thumb: f.type.startsWith('image/')?dataUrl:null, createdAt:new Date().toISOString()};
+    await saveDocument(meta, dataUrl);
+  }
+  closeModal('modal-upload'); toast('Documento(s) salvo(s)'); renderSidebar(); renderGrid();
+}
+function fileToDataUrl(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+
+async function saveDocument(meta, dataUrl){
+  await stSet('docflow:docmeta:'+session.companyId+':'+meta.id, meta);
+  await stSet('docflow:docfile:'+session.companyId+':'+meta.id, dataUrl);
+  const idx = await stGet('docflow:docindex:'+session.companyId) || [];
+  idx.push(meta.id);
+  await stSet('docflow:docindex:'+session.companyId, idx);
+  const companies = await stGet('docflow:companies') || {};
+  if(companies[session.companyId]){
+    companies[session.companyId].usedBytes = (companies[session.companyId].usedBytes||0) + (meta.sizeBytes||0);
+    await stSet('docflow:companies', companies);
+  }
+}
+
+/* ---------------- viewer ---------------- */
+async function openViewer(docId){
+  currentDocId = docId;
+  const meta = await stGet('docflow:docmeta:'+session.companyId+':'+docId);
+  if(!meta) return;
+  const cats = await stGet('docflow:categories:'+session.companyId) || [];
+  const folders = await stGet('docflow:folders:'+session.companyId) || [];
+  document.getElementById('viewer-title').textContent = meta.name;
+  document.getElementById('viewer-cat').textContent = cats.find(c=>c.id===meta.categoryId)?.name || '—';
+  document.getElementById('viewer-folder').textContent = folders.find(f=>f.id===meta.folderId)?.name || 'Sem pasta';
+  document.getElementById('viewer-date').textContent = formatDate(meta.createdAt);
+  document.getElementById('viewer-size').textContent = formatSize(meta.sizeBytes);
+  document.getElementById('viewer-pages').textContent = meta.pageCount || 1;
+  const prev = document.getElementById('viewer-preview');
+  if(meta.mimeType && meta.mimeType.startsWith('image/')){
+    const dataUrl = await stGet('docflow:docfile:'+session.companyId+':'+docId);
+    prev.innerHTML = `<img src="${dataUrl}">`;
+  } else {
+    prev.innerHTML = `<div style="font-size:48px;">📕</div>`;
+  }
+  const ocrWrap = document.getElementById('viewer-ocr-wrap');
+  if(meta.ocrText){ ocrWrap.classList.remove('hidden'); document.getElementById('viewer-ocr').textContent = meta.ocrText.slice(0,1500); }
+  else ocrWrap.classList.add('hidden');
+  document.getElementById('modal-viewer').classList.remove('hidden');
+}
+async function downloadCurrentDoc(){
+  const meta = await stGet('docflow:docmeta:'+session.companyId+':'+currentDocId);
+  const dataUrl = await stGet('docflow:docfile:'+session.companyId+':'+currentDocId);
+  if(!dataUrl){ toast('Arquivo indisponível'); return; }
+  const a = document.createElement('a'); a.href = dataUrl; a.download = meta.name; document.body.appendChild(a); a.click(); a.remove();
+}
+async function deleteCurrentDoc(){
+  if(!confirm('Excluir este documento? Esta ação não pode ser desfeita.')) return;
+  await window.storage.delete('docflow:docmeta:'+session.companyId+':'+currentDocId,false).catch(()=>{});
+  await window.storage.delete('docflow:docfile:'+session.companyId+':'+currentDocId,false).catch(()=>{});
+  let idx = await stGet('docflow:docindex:'+session.companyId) || [];
+  idx = idx.filter(i=>i!==currentDocId);
+  await stSet('docflow:docindex:'+session.companyId, idx);
+  closeModal('modal-viewer'); toast('Documento excluído'); renderSidebar(); renderGrid();
+}
+
+/* ---------------- toast ---------------- */
+function toast(msg){
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div'); t.className='toast'; t.textContent=msg;
+  c.appendChild(t); setTimeout(()=>t.remove(),2600);
+}
+
+/* ======================================================================
+   SCANNER MODULE
+   Etapas: capturar -> ajustar recorte/perspectiva -> realçar -> revisar
+   páginas -> gerar PDF + OCR -> salvar com metadados.
+   ====================================================================== */
+let scan = { pages:[], workingImg:null, corners:null, cropOutSize:null, enhanced:null, mode:'bw', editingPageIndex:null };
+
+function openScanner(){
+  scan = { pages:[], workingImg:null, corners:null, cropOutSize:null, enhanced:null, mode:'bw', editingPageIndex:null };
+  document.getElementById('scanner').classList.remove('hidden');
+  renderScanStep('capture');
+}
+function closeScanner(){
+  if(scan.pages.length>0 && !confirm('Sair sem salvar? As páginas digitalizadas serão perdidas.')) return;
+  document.getElementById('scanner').classList.add('hidden');
+}
+function setProgress(step){
+  const map={capture:1,crop:2,enhance:3,pages:4,save:4};
+  for(let i=1;i<=4;i++) document.getElementById('sp-'+i).classList.toggle('done', i<=map[step]);
+}
+
+function renderScanStep(step){
+  setProgress(step);
+  const body = document.getElementById('scan-body');
+  document.querySelectorAll('.scan-foot').forEach(e=>e.remove());
+  if(step==='capture') return renderStepCapture(body);
+  if(step==='crop') return renderStepCrop(body);
+  if(step==='enhance') return renderStepEnhance(body);
+  if(step==='pages') return renderStepPages(body);
+  if(step==='save') return renderStepSave(body);
+}
+
+/* ---- Step 1: capture ---- */
+function renderStepCapture(body){
+  body.innerHTML = `
+    <label class="capture-drop" for="camera-input">
+      <div class="brandmark bmark" style="transform:scale(1.4)"><span></span><span></span><span></span><span></span></div>
+      <div style="font-weight:600;font-size:15px;color:#fff;">Toque para abrir a câmera</div>
+      <div class="scan-tip" style="margin-top:0">Posicione o documento sobre uma superfície com boa iluminação e evite sombras sobre o papel.</div>
+      <input id="camera-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="onCapture(this.files)">
+    </label>
+    <div class="scan-tip">Página ${scan.pages.length+1}${scan.pages.length>0 ? ' · '+scan.pages.length+' página(s) já digitalizada(s)' : ''}</div>
+  `;
+  const foot = document.createElement('div'); foot.className='scan-foot';
+  foot.innerHTML = scan.pages.length>0 ? `<button class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="renderScanStep('pages')">Ver páginas (${scan.pages.length})</button>` : '';
+  document.getElementById('scanner').appendChild(foot);
+}
+function onCapture(files){
+  if(!files || !files[0]) return;
+  const img = new Image();
+  img.onload = ()=>{ scan.workingImg = img; renderScanStep('crop'); };
+  img.src = URL.createObjectURL(files[0]);
+}
+
+/* ---- Step 2: crop / perspective ---- */
+function renderStepCrop(body){
+  const img = scan.workingImg;
+  const maxW = Math.min(window.innerWidth-32, 480);
+  const scale = Math.min(maxW/img.width, 1);
+  const dispW = img.width*scale, dispH = img.height*scale;
+  body.innerHTML = `
+    <div class="scan-tip" style="margin-top:0;margin-bottom:12px;">Ajuste os 4 cantos para contornar exatamente a folha.</div>
+    <div id="crop-canvas-wrap" style="width:${dispW}px;height:${dispH}px;">
+      <canvas id="crop-canvas" width="${dispW}" height="${dispH}"></canvas>
+    </div>
+  `;
+  const canvas = document.getElementById('crop-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img,0,0,dispW,dispH);
+  const bounds = autoDetectBounds(ctx, dispW, dispH);
+  scan.corners = [ {x:bounds.left,y:bounds.top}, {x:bounds.right,y:bounds.top}, {x:bounds.right,y:bounds.bottom}, {x:bounds.left,y:bounds.bottom} ];
+  scan.dispScale = scale;
+  drawCropOverlay();
+  attachHandleEvents();
+
+  const foot = document.createElement('div'); foot.className='scan-foot';
+  foot.innerHTML = `<button class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="renderScanStep('capture')">Refazer foto</button>
+    <button class="btn btn-primary" onclick="applyCrop()">Confirmar recorte</button>`;
+  document.getElementById('scanner').appendChild(foot);
+}
+function autoDetectBounds(ctx,w,h){
+  try{
+    const data = ctx.getImageData(0,0,w,h).data;
+    const at=(x,y)=>{ x=Math.max(0,Math.min(w-1,x|0)); y=Math.max(0,Math.min(h-1,y|0)); const i=(y*w+x)*4; return (data[i]+data[i+1]+data[i+2])/3; };
+    const bg = (at(3,3)+at(w-4,3)+at(3,h-4)+at(w-4,h-4))/4;
+    const TH = 26;
+    const samplesY = [0.15,0.3,0.45,0.5,0.55,0.7,0.85].map(p=>Math.floor(h*p));
+    const samplesX = [0.15,0.3,0.45,0.5,0.55,0.7,0.85].map(p=>Math.floor(w*p));
+    function scanLeft(){ for(let x=2;x<w*0.4;x++){ let hit=0; for(const y of samplesY) if(Math.abs(at(x,y)-bg)>TH) hit++; if(hit>=samplesY.length*0.55) return x; } return Math.floor(w*0.06); }
+    function scanRight(){ for(let x=w-3;x>w*0.6;x--){ let hit=0; for(const y of samplesY) if(Math.abs(at(x,y)-bg)>TH) hit++; if(hit>=samplesY.length*0.55) return x; } return Math.floor(w*0.94); }
+    function scanTop(){ for(let y=2;y<h*0.4;y++){ let hit=0; for(const x of samplesX) if(Math.abs(at(x,y)-bg)>TH) hit++; if(hit>=samplesX.length*0.55) return y; } return Math.floor(h*0.06); }
+    function scanBottom(){ for(let y=h-3;y>h*0.6;y--){ let hit=0; for(const x of samplesX) if(Math.abs(at(x,y)-bg)>TH) hit++; if(hit>=samplesX.length*0.55) return y; } return Math.floor(h*0.94); }
+    let left=scanLeft(), right=scanRight(), top=scanTop(), bottom=scanBottom();
+    if(right-left < w*0.3 || bottom-top < h*0.3){ left=w*0.06; right=w*0.94; top=h*0.06; bottom=h*0.94; }
+    return {left,right,top,bottom};
+  }catch(e){ return {left:w*0.06,right:w*0.94,top:h*0.06,bottom:h*0.94}; }
+}
+function drawCropOverlay(){
+  const wrap = document.getElementById('crop-canvas-wrap');
+  wrap.querySelectorAll('.crop-handle, svg.crop-lines').forEach(e=>e.remove());
+  const c = scan.corners;
+  const ns='http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns,'svg');
+  svg.setAttribute('class','crop-lines');
+  svg.setAttribute('width', wrap.offsetWidth); svg.setAttribute('height', wrap.offsetHeight);
+  svg.style.position='absolute'; svg.style.top=0; svg.style.left=0; svg.style.pointerEvents='none';
+  const poly = document.createElementNS(ns,'polygon');
+  poly.setAttribute('points', c.map(p=>p.x+','+p.y).join(' '));
+  poly.setAttribute('fill','rgba(31,138,112,.18)'); poly.setAttribute('stroke','#1F8A70'); poly.setAttribute('stroke-width','2.5');
+  svg.appendChild(poly); wrap.appendChild(svg);
+  c.forEach((p,i)=>{
+    const h = document.createElement('div'); h.className='crop-handle'; h.style.left=p.x+'px'; h.style.top=p.y+'px'; h.dataset.idx=i;
+    wrap.appendChild(h);
+  });
+}
+function attachHandleEvents(){
+  const wrap = document.getElementById('crop-canvas-wrap');
+  let dragIdx=null;
+  function pos(e){ const r=wrap.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
+  wrap.addEventListener('pointerdown', e=>{ if(e.target.classList.contains('crop-handle')){ dragIdx=+e.target.dataset.idx; e.target.setPointerCapture(e.pointerId); } });
+  wrap.addEventListener('pointermove', e=>{ if(dragIdx===null) return; const p=pos(e); scan.corners[dragIdx]={x:Math.max(0,Math.min(wrap.offsetWidth,p.x)), y:Math.max(0,Math.min(wrap.offsetHeight,p.y))}; drawCropOverlay(); });
+  wrap.addEventListener('pointerup', ()=> dragIdx=null);
+  wrap.addEventListener('pointercancel', ()=> dragIdx=null);
+}
+
+/* ---- geometry: affine solve + triangle warp for perspective crop ---- */
+function invert3x3(m){
+  const [a,b,c,d,e,f,g,h,i] = [m[0][0],m[0][1],m[0][2],m[1][0],m[1][1],m[1][2],m[2][0],m[2][1],m[2][2]];
+  const A=e*i-f*h, B=-(d*i-f*g), C=d*h-e*g;
+  const det = a*A + b*B + c*C;
+  const D=-(b*i-c*h), E=a*i-c*g, F=-(a*h-b*g);
+  const G=b*f-c*e, H=-(a*f-c*d), I=a*e-b*d;
+  return [[A/det,D/det,G/det],[B/det,E/det,H/det],[C/det,F/det,I/det]];
+}
+function solveAffine(s0,s1,s2,d0,d1,d2){
+  const M=[[s0.x,s0.y,1],[s1.x,s1.y,1],[s2.x,s2.y,1]];
+  const inv = invert3x3(M);
+  const mulVec=(mat,v)=> mat.map(row=> row[0]*v[0]+row[1]*v[1]+row[2]*v[2]);
+  const ace = mulVec(inv,[d0.x,d1.x,d2.x]);
+  const bdf = mulVec(inv,[d0.y,d1.y,d2.y]);
+  return {a:ace[0],c:ace[1],e:ace[2],b:bdf[0],d:bdf[1],f:bdf[2]};
+}
+function drawTriangle(ctx,img,sTri,dTri){
+  const t = solveAffine(sTri[0],sTri[1],sTri[2],dTri[0],dTri[1],dTri[2]);
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(dTri[0].x,dTri[0].y); ctx.lineTo(dTri[1].x,dTri[1].y); ctx.lineTo(dTri[2].x,dTri[2].y); ctx.closePath(); ctx.clip();
+  ctx.transform(t.a,t.b,t.c,t.d,t.e,t.f);
+  ctx.drawImage(img,0,0);
+  ctx.restore();
+}
+function warpQuadToRect(img, srcCorners, outW, outH){
+  const out = document.createElement('canvas'); out.width=outW; out.height=outH;
+  const ctx = out.getContext('2d');
+  const d = [{x:0,y:0},{x:outW,y:0},{x:outW,y:outH},{x:0,y:outH}];
+  drawTriangle(ctx,img,[srcCorners[0],srcCorners[1],srcCorners[2]],[d[0],d[1],d[2]]);
+  drawTriangle(ctx,img,[srcCorners[0],srcCorners[2],srcCorners[3]],[d[0],d[2],d[3]]);
+  return out;
+}
+function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+
+function applyCrop(){
+  const img = scan.workingImg;
+  const scale = 1/scan.dispScale; // convert displayed-canvas coords back to full-res image coords
+  const full = scan.corners.map(p=>({x:p.x*scale, y:p.y*scale}));
+  const outW = Math.min(1500, Math.max(dist(full[0],full[1]), dist(full[3],full[2])));
+  const ratio = Math.max(dist(full[0],full[3]), dist(full[1],full[2])) / Math.max(1,Math.max(dist(full[0],full[1]),dist(full[3],full[2])));
+  const outH = Math.min(2000, outW*ratio);
+  const warped = warpQuadToRect(img, full, Math.round(outW), Math.round(outH));
+  scan.cropped = warped;
+  renderScanStep('enhance');
+}
+
+/* ---- Step 3: enhance ---- */
+function renderStepEnhance(body){
+  body.innerHTML = `
+    <div id="enhance-canvas-wrap"><canvas id="enhance-canvas"></canvas></div>
+    <div class="enhance-controls">
+      <button class="chip-toggle ${scan.mode==='bw'?'active':''}" onclick="setEnhanceMode('bw')">📄 Modo documento (P&B)</button>
+      <button class="chip-toggle ${scan.mode==='color'?'active':''}" onclick="setEnhanceMode('color')">🎨 Colorido nítido</button>
+      <button class="chip-toggle ${scan.mode==='gray'?'active':''}" onclick="setEnhanceMode('gray')">◐ Cinza suave</button>
+    </div>
+    <div class="scan-tip">Contraste, brilho e nitidez são ajustados automaticamente. Escolha o modo que deixar o texto mais legível.</div>
+  `;
+  drawEnhancePreview();
+  const foot = document.createElement('div'); foot.className='scan-foot';
+  foot.innerHTML = `<button class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="renderScanStep('crop')">Ajustar recorte</button>
+    <button class="btn btn-primary" onclick="confirmPage()">Usar esta página</button>`;
+  document.getElementById('scanner').appendChild(foot);
+}
+function setEnhanceMode(m){ scan.mode=m; drawEnhancePreview(); renderStepEnhance.lastMode=m; document.querySelectorAll('.chip-toggle').forEach(b=>b.classList.remove('active')); event.target.classList.add('active'); }
+function drawEnhancePreview(){
+  const src = scan.cropped;
+  const canvas = document.getElementById('enhance-canvas');
+  const maxW = Math.min(window.innerWidth-32, 380);
+  const scale = Math.min(maxW/src.width,1);
+  canvas.width = src.width*scale; canvas.height = src.height*scale;
+  const ctx = canvas.getContext('2d');
+  if(scan.mode==='bw') ctx.filter = 'grayscale(1) contrast(1.55) brightness(1.12)';
+  else if(scan.mode==='gray') ctx.filter = 'grayscale(1) contrast(1.15) brightness(1.05)';
+  else ctx.filter = 'contrast(1.22) saturate(1.08) brightness(1.06)';
+  ctx.drawImage(src,0,0,canvas.width,canvas.height);
+  ctx.filter='none';
+  scan.enhancedPreviewDataUrl = canvas.toDataURL('image/jpeg',0.92);
+}
+function renderFinalEnhanced(){
+  // render at full crop resolution (not the small preview) for the saved page
+  const src = scan.cropped;
+  const canvas = document.createElement('canvas'); canvas.width=src.width; canvas.height=src.height;
+  const ctx = canvas.getContext('2d');
+  if(scan.mode==='bw') ctx.filter = 'grayscale(1) contrast(1.55) brightness(1.12)';
+  else if(scan.mode==='gray') ctx.filter = 'grayscale(1) contrast(1.15) brightness(1.05)';
+  else ctx.filter = 'contrast(1.22) saturate(1.08) brightness(1.06)';
+  ctx.drawImage(src,0,0);
+  return canvas;
+}
+function confirmPage(){
+  const finalCanvas = renderFinalEnhanced();
+  const dataUrl = finalCanvas.toDataURL('image/jpeg',0.92);
+  const pageObj = {id:uid('pg'), dataUrl, w:finalCanvas.width, h:finalCanvas.height};
+  if(scan.editingPageIndex!==null && scan.editingPageIndex!==undefined){
+    scan.pages[scan.editingPageIndex] = pageObj; scan.editingPageIndex=null;
+  } else {
+    scan.pages.push(pageObj);
+  }
+  renderScanStep('pages');
+}
+
+/* ---- Step 4: pages review ---- */
+function renderStepPages(body){
+  body.innerHTML = `
+    <div class="pages-strip" id="pages-strip"></div>
+    <div class="scan-tip">Arraste para reordenar não disponível no toque — use os botões ↑ ↓. Toque em "Refazer" para tirar a foto novamente daquela página.</div>
+  `;
+  const strip = document.getElementById('pages-strip');
+  scan.pages.forEach((p,i)=>{
+    const div = document.createElement('div'); div.className='page-thumb';
+    div.innerHTML = `<div class="pnum">Pág. ${i+1}</div><img src="${p.dataUrl}">
+      <div class="page-actions">
+        <button onclick="movePage(${i},-1)" ${i===0?'disabled':''}>↑</button>
+        <button onclick="movePage(${i},1)" ${i===scan.pages.length-1?'disabled':''}>↓</button>
+        <button onclick="retakePage(${i})">Refazer</button>
+        <button onclick="deletePage(${i})">🗑</button>
+      </div>`;
+    strip.appendChild(div);
+  });
+  const addTile = document.createElement('label'); addTile.className='add-page-tile'; addTile.innerHTML = `＋<span>Adicionar página</span>
+    <input type="file" accept="image/*" capture="environment" style="display:none" onchange="onCapture(this.files)">`;
+  strip.appendChild(addTile);
+
+  const foot = document.createElement('div'); foot.className='scan-foot';
+  foot.innerHTML = scan.pages.length>0
+    ? `<button class="btn btn-primary" onclick="goToSave()">Concluir · gerar PDF (${scan.pages.length} pág.)</button>`
+    : `<button class="btn btn-ghost" style="color:#fff;border-color:rgba(255,255,255,.3)" onclick="renderScanStep('capture')">Escanear primeira página</button>`;
+  document.getElementById('scanner').appendChild(foot);
+}
+function movePage(i,dir){ const j=i+dir; if(j<0||j>=scan.pages.length) return; const t=scan.pages[i]; scan.pages[i]=scan.pages[j]; scan.pages[j]=t; renderScanStep('pages'); }
+function deletePage(i){ scan.pages.splice(i,1); renderScanStep('pages'); }
+function retakePage(i){ scan.editingPageIndex=i; renderScanStep('capture'); }
+
+/* ---- generate PDF + OCR, then save form ---- */
+async function goToSave(){
+  const body = document.getElementById('scan-body');
+  body.innerHTML = `<div class="scan-status" style="margin-top:60px;"><div class="spinner"></div><div style="margin-top:14px" id="ocr-status">Gerando PDF...</div></div>`;
+  document.querySelectorAll('.scan-foot').forEach(e=>e.remove());
+
+  const { jsPDF } = window.jspdf || {};
+  let pdfDataUrl = null;
+  try{
+    const pdf = new jsPDF({unit:'pt', format:'a4'});
+    for(let i=0;i<scan.pages.length;i++){
+      const p = scan.pages[i];
+      if(i>0) pdf.addPage();
+      const pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pageW/p.w, pageH/p.h);
+      const w = p.w*ratio, h = p.h*ratio;
+      pdf.addImage(p.dataUrl,'JPEG',(pageW-w)/2,(pageH-h)/2,w,h);
+    }
+    pdfDataUrl = pdf.output('datauristring');
+  }catch(e){ console.error(e); toast('Não foi possível gerar o PDF, salvando como imagens.'); }
+
+  let ocrText = '';
+  try{
+    if(window.Tesseract){
+      document.getElementById('ocr-status').textContent = 'Reconhecendo texto (OCR)...';
+      const worker = await Tesseract.createWorker('por');
+      for(let i=0;i<scan.pages.length;i++){
+        document.getElementById('ocr-status').textContent = `Reconhecendo texto — página ${i+1} de ${scan.pages.length}...`;
+        const { data } = await worker.recognize(scan.pages[i].dataUrl);
+        ocrText += (data.text||'') + '\\n';
+      }
+      await worker.terminate();
+    }
+  }catch(e){ console.warn('OCR indisponível', e); }
+
+  scan.pdfDataUrl = pdfDataUrl;
+  scan.ocrText = ocrText.trim();
+  renderScanStep('save');
+}
+
+async function renderStepSave(body){
+  const cats = await stGet('docflow:categories:'+session.companyId) || [];
+  const folders = await stGet('docflow:folders:'+session.companyId) || [];
+  body.innerHTML = `
+    <div class="save-form">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+        <img src="${scan.pages[0].dataUrl}" style="width:52px;height:66px;object-fit:cover;border-radius:6px;">
+        <div><div style="font-weight:600;font-size:14px;">${scan.pages.length} página(s) digitalizada(s)</div>
+        <div style="font-size:12px;color:var(--slate)">${scan.ocrText ? 'Texto reconhecido — pesquisável' : 'OCR não disponível para esta captura'}</div></div>
+      </div>
+      <div class="field"><label>Nome do documento</label><input id="save-name" value="Documento ${new Date().toLocaleDateString('pt-BR')}"></div>
+      <div class="field"><label>Categoria</label><select id="save-category">${cats.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Pasta (opcional)</label><select id="save-folder"><option value="">Sem pasta</option>${folders.map(f=>`<option value="${f.id}">${escapeHtml(f.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Data</label><input id="save-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <button class="btn btn-primary" onclick="finalizeSave()">Salvar na plataforma</button>
+    </div>
+  `;
+}
+async function finalizeSave(){
+  const name = document.getElementById('save-name').value.trim() || 'Documento sem nome';
+  const categoryId = document.getElementById('save-category').value;
+  const folderId = document.getElementById('save-folder').value || null;
+  const date = document.getElementById('save-date').value;
+  const dataUrl = scan.pdfDataUrl || scan.pages[0].dataUrl;
+  const mimeType = scan.pdfDataUrl ? 'application/pdf' : 'image/jpeg';
+  const sizeBytes = Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+  const id = uid('doc');
+  const meta = {id, name: name+(mimeType==='application/pdf'?'.pdf':'.jpg'), categoryId, folderId, mimeType, sizeBytes,
+    pageCount: scan.pages.length, ocrText: scan.ocrText||'', thumb: scan.pages[0].dataUrl, createdAt: new Date(date).toISOString()};
+  await saveDocument(meta, dataUrl);
+  document.getElementById('scanner').classList.add('hidden');
+  toast('Documento escaneado e salvo com sucesso');
+  renderSidebar(); renderGrid();
+}
+
+/* ======================================================================
+   ADMIN PANEL
+   ====================================================================== */
+async function showAdmin(){
+  document.getElementById('view-login').classList.add('hidden');
+  document.getElementById('view-shell').classList.add('hidden');
+  document.getElementById('view-admin').classList.remove('hidden');
+  const companies = await stGet('docflow:companies') || {};
+  const users = await stGet('docflow:users') || [];
+  let totalDocs=0, totalBytes=0;
+  const rows = [];
+  for(const cid in companies){
+    const c = companies[cid];
+    const idx = await stGet('docflow:docindex:'+cid) || [];
+    let bytes=0;
+    for(const did of idx){ const m = await stGet('docflow:docmeta:'+cid+':'+did); if(m) bytes += (m.sizeBytes||0); }
+    totalDocs += idx.length; totalBytes += bytes;
+    const uCount = users.filter(u=>u.companyId===cid).length;
+    rows.push({c, docCount:idx.length, bytes, uCount});
+  }
+  document.getElementById('admin-stats').innerHTML = `
+    <div class="stat-card"><div class="num">${Object.keys(companies).length}</div><div class="lbl">Empresas ativas na plataforma</div></div>
+    <div class="stat-card"><div class="num">${users.length}</div><div class="lbl">Usuários cadastrados</div></div>
+    <div class="stat-card"><div class="num">${totalDocs}</div><div class="lbl">Documentos armazenados</div></div>
+    <div class="stat-card"><div class="num">${formatSize(totalBytes)}</div><div class="lbl">Armazenamento total usado</div></div>
+  `;
+  document.getElementById('admin-companies').innerHTML = rows.map(r=>{
+    const limitBytes = (r.c.storageLimitMB||500)*1024*1024;
+    const pct = Math.min(100, Math.round((r.bytes/limitBytes)*100));
+    return `<tr>
+      <td><b>${escapeHtml(r.c.name)}</b><br><span style="color:var(--slate);font-family:var(--font-mono);font-size:11.5px">${r.c.cnpj}</span></td>
+      <td>${escapeHtml(r.c.plan)}</td>
+      <td>${r.uCount}</td>
+      <td>${r.docCount}</td>
+      <td><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><span style="font-size:11px;color:var(--slate)">${formatSize(r.bytes)} / ${r.c.storageLimitMB} MB</span></td>
+      <td><span class="status-pill ${r.c.status==='active'?'status-active':'status-suspended'}">${r.c.status==='active'?'Ativa':'Suspensa'}</span></td>
+      <td><button class="btn btn-sm btn-ghost" onclick="toggleCompanyStatus('${r.c.id}')">${r.c.status==='active'?'Suspender':'Reativar'}</button></td>
+    </tr>`;
+  }).join('');
+}
+async function toggleCompanyStatus(cid){
+  const companies = await stGet('docflow:companies') || {};
+  companies[cid].status = companies[cid].status==='active' ? 'suspended' : 'active';
+  await stSet('docflow:companies', companies);
+  showAdmin();
+}
+
+/* ---------------- init ---------------- */
+(async function init(){
+  await ensureSeed();
+})();
+</script>
+</body>
+</html>
